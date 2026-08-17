@@ -1,4 +1,5 @@
 /***************************************************************************************************
+ * Copyright (c) 2022-2026, T-HEAD (SHANGHAI) SEMICONDUCTOR CO., LTD.
  * Copyright (c) 2017 - 2023 NVIDIA CORPORATION & AFFILIATES. All rights
  *reserved. SPDX-License-Identifier: BSD-3-Clause
  *
@@ -96,29 +97,6 @@ struct DefaultWarpIteratorAFromSharedMemory<
           typename RegularWarpIterator::Element,
           cutlass::layout::RowMajor,
           cutlass::MatrixShape<InstructionShape::kM, InstructionShape::kK>,
-          OpDelta::kRow,
-          kWarpSize>;
-};
-
-// TensorOp - Volta
-template <typename WarpShape, typename RegularWarpIterator, typename Policy>
-struct DefaultWarpIteratorAFromSharedMemory<
-    WarpShape,
-    cutlass::gemm::GemmShape<16, 16, 4>,
-    RegularWarpIterator,
-    Policy> {
-  using InstructionShape = cutlass::gemm::GemmShape<16, 16, 4>;
-  static constexpr auto kWarpSize = 32;
-  using OpDelta = typename Policy::Operator::Policy::OpDelta;
-
-  using WarpIterator =
-      cutlass::gemm::warp::MmaVoltaTensorOpMultiplicandTileIterator<
-          cutlass::MatrixShape<32, 32>, // MatrixShape<WarpShape::kM,
-                                        // WarpShape::kK>,
-          cutlass::gemm::Operand::kA,
-          typename RegularWarpIterator::Element,
-          cutlass::layout::RowMajorVoltaTensorOpMultiplicandCrosswise<16, 32>,
-          cutlass::MatrixShape<16, 4>,
           OpDelta::kRow,
           kWarpSize>;
 };

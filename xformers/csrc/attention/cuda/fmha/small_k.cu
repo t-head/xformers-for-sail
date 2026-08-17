@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2022-2026, T-HEAD (SHANGHAI) SEMICONDUCTOR CO., LTD.
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
@@ -16,7 +17,7 @@
 #include <ATen/cuda/Atomic.cuh>
 #include <ATen/cuda/CUDAGraphsUtils.cuh>
 
-#include <curand_kernel.h>
+#include <acrand_kernel.h>
 
 #include "sputnik/vector_utils.h"
 
@@ -160,7 +161,7 @@ struct RNGMaskGenerator {
   uint64_t offset_;
   int64_t N_;
   int64_t global_offset_;
-  curandStatePhilox4_32_10_t state_;
+  acrandStatePhilox4_32_10_t state_;
 
   __device__ __forceinline__ RNGMaskGenerator (at::PhiloxCudaState philox_args)
 { auto seeds = at:cuda::philox::unpack(philox_args); seed_ = std::get<0>(seeds);
@@ -173,12 +174,12 @@ struct RNGMaskGenerator {
     // takes a significant portion of time. So we instead modify the seed
     // so that each thread has a different seed. This has fewer statistical
     // guarantees than by doing it properly, but is much faster
-    // curand_init(seed_, total_offset, offset_, &state_);
-    curand_init(seed_ + (total_offset << 8) + offset_, 0, 0, &state_);
+    // acrand_init(seed_, total_offset, offset_, &state_);
+    acrand_init(seed_ + (total_offset << 8) + offset_, 0, 0, &state_);
   }
 
   __device__ __forceinline__ float4 generate() {
-      return curand_uniform4(&state_);
+      return acrand_uniform4(&state_);
   }
 
 }
@@ -228,7 +229,7 @@ __device__ void apply_masking(
   // matrix has its own subsequence, so that we can easily retrieve
   // the element during backward
 
-  curandStatePhilox4_32_10_t state;
+  acrandStatePhilox4_32_10_t state;
   auto seeds = at::cuda::philox::unpack(philox_args);
 
   // we will always sample 4 random floats at a time
@@ -251,11 +252,11 @@ __device__ void apply_masking(
       // takes a significant portion of time. So we instead modify the seed
       // so that each thread has a different seed. This has fewer statistical
       // guarantees than by doing it properly, but is much faster
-      curand_init(
+      acrand_init(
           std::get<0>(seeds), offset, std::get<1>(seeds) + delta, &state);
-      // curand_init(std::get<0>(seeds) + (offset << 8) + std::get<1>(seeds), 0,
+      // acrand_init(std::get<0>(seeds) + (offset << 8) + std::get<1>(seeds), 0,
       // 0, &state);
-      float4 rand = curand_uniform4(&state);
+      float4 rand = acrand_uniform4(&state);
       for (int kk = 0; kk < kSampled; kk++) {
         if (k_item_idx + kk < kBlockSizeK)
           s_delta[q_item_idx][k_item_idx + kk] *= (&rand.x)[kk] < p;

@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2022-2026, T-HEAD (SHANGHAI) SEMICONDUCTOR CO., LTD.
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
@@ -11,8 +12,8 @@
 #include <type_traits>
 #include <vector>
 
-#include <cuda_fp16.h>
-#include <curand_kernel.h>
+#include <hggc_fp16.h>
+#include <acrand_kernel.h>
 
 #ifdef HAS_PYTORCH
 #include <ATen/cuda/CUDAContext.h>
@@ -44,9 +45,7 @@
 #include "cutlass/gemm/kernel/default_gemm.h"
 #include "cutlass/gemm/threadblock/default_mma.h"
 #include "cutlass/gemm/threadblock/default_mma_core_simt.h"
-#include "cutlass/gemm/threadblock/default_mma_core_sm70.h"
-#include "cutlass/gemm/threadblock/default_mma_core_sm75.h"
-#include "cutlass/gemm/threadblock/default_mma_core_sm80.h"
+#include "cutlass/gemm/threadblock/default_mma_core.h"
 #include "cutlass/integer_subbyte.h"
 #include "cutlass/matrix_shape.h"
 #include "cutlass/platform/platform.h"
@@ -172,7 +171,7 @@ struct AtomicLock {
       int thread_id) {
     if (thread_id == 0) {
       while (atomicCAS(lock, 0 /*cmp*/, set_val /*setval*/) != set_val) {
-#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 700
+#if defined(COMPATIBLE_ARCH) && COMPATIBLE_ARCH >= 700
         __nanosleep(40);
 #endif
       }
@@ -182,12 +181,12 @@ struct AtomicLock {
   CUTLASS_DEVICE static void release(int32_t* lock, int thread_id) {
     if (thread_id == 0) {
       int status = 0;
-#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 700
-      asm volatile("st.global.release.gpu.b32 [%0], %1;\n"
+#if defined(COMPATIBLE_ARCH) && COMPATIBLE_ARCH >= 700
+      asm volatile("ppu.st.global.release.gpu.b32 [%0], %1;\n"
                    :
                    : "l"(lock), "r"(status));
 #else
-      asm volatile("st.global.cg.b32 [%0], %1;\n" : : "l"(lock), "r"(status));
+      asm volatile("ppu.st.global.cg.b32 [%0], %1;\n" : : "l"(lock), "r"(status));
 #endif
     }
   }
@@ -204,7 +203,7 @@ constexpr int getWarpsPerSmBw() {
 } // namespace
 
 template <
-    // which arch we target (eg `cutlass::arch::Sm80`)
+    // which arch we target (eg `cutlass::arch::PPU0010`)
     typename ArchTag_,
     // input/output type
     typename scalar_t_,
@@ -726,14 +725,14 @@ struct AttentionBackwardKernel {
     int64_t gB_strideH = 0;
 
     CUTLASS_HOST_DEVICE int16_t num_splits_key_device() const {
-#ifdef __CUDA_ARCH__
+#ifdef COMPATIBLE_ARCH
       return kEnableSplitKeys ? gridDim.x : 1;
 #else
       return num_splits_key; // for host-side tests
 #endif
     }
     CUTLASS_HOST_DEVICE int16_t split_key_device() const {
-#ifdef __CUDA_ARCH__
+#ifdef COMPATIBLE_ARCH
       return kEnableSplitKeys ? blockIdx.x : 0;
 #else
       return 0; // for host-side tests
@@ -819,7 +818,7 @@ struct AttentionBackwardKernel {
 
       // Some values are modified above
       // Signal to the compiler that they are the same in all threads
-      // and can be stored in warp-uniform registers (Sm75+)
+      // and can be stored in warp-uniform registers (PPU+)
       num_queries = warp_uniform(num_queries);
       num_keys = warp_uniform(num_keys);
       custom_mask_type = warp_uniform(custom_mask_type);
@@ -1333,7 +1332,7 @@ struct AttentionBackwardKernel {
 
     OutputFragments output_frags;
 
-    curandStatePhilox4_32_10_t rng_state_init;
+    acrandStatePhilox4_32_10_t rng_state_init;
 #ifdef HAS_PYTORCH
     if (kApplyDropout) {
       auto seeds = at::cuda::philox::unpack(p.rng_engine_inputs);
@@ -1345,7 +1344,7 @@ struct AttentionBackwardKernel {
       // initializing rng state is very expensive, so we run once per kernel,
       // rather than once per iteration. each iteration takes a copy of the
       // initialized RNG state and offsets it as needed.
-      curand_init(
+      acrand_init(
           std::get<0>(seeds),
           0,
           std::get<1>(seeds) + p.dropout_batch_head_rng_offset,
@@ -1436,7 +1435,7 @@ struct AttentionBackwardKernel {
       Params& p,
       int32_t query_start,
       int32_t key_start,
-      const curandStatePhilox4_32_10_t& curand_state_init,
+      const acrandStatePhilox4_32_10_t& acrand_state_init,
       uint8_t warp_id,
       uint8_t lane_id) {
     cutlass::Array<cutlass::uint1b_t, MatmulDOIVJ::Mma::FragmentC::kElements>
@@ -1720,18 +1719,18 @@ struct AttentionBackwardKernel {
             (thread_id % threads_per_row) * elts_per_thread;
 
         if (thread_i < kQueriesPerBlock && thread_start_j < num_keys_in_block) {
-          curandStatePhilox4_32_10_t curand_state = curand_state_init;
+          acrandStatePhilox4_32_10_t acrand_state = acrand_state_init;
           skipahead(
               (query_start + thread_i) * p.num_keys +
                   (key_start + thread_start_j),
-              &curand_state);
+              &acrand_state);
 
           // generate elements of Zij, 4 elements at a time
           for (int zij_start_col_idx = thread_start_j; zij_start_col_idx <
                cutlass::fast_min<int32_t>(thread_start_j + elts_per_thread,
                                           num_keys_in_block);
                zij_start_col_idx += 4) {
-            const float4 rand_uniform_quad = curand_uniform4(&curand_state);
+            const float4 rand_uniform_quad = acrand_uniform4(&acrand_state);
 
             CUTLASS_PRAGMA_UNROLL
             for (int quad_idx = 0; quad_idx < 4; ++quad_idx) {
@@ -2396,7 +2395,7 @@ struct AttentionBackwardKernel {
         thread_id,
         cutlass::MatrixCoord{0, 0});
 
-    typename MatmulQK::Mma::IteratorB iterator_B(
+    MatmulQK::Mma::template prologue<kReloadK, true>(
         {int32_t(p.q_strideM)},
         p.query_ptr + query_start * p.q_strideM,
         {p.head_dim, p.num_queries - query_start},

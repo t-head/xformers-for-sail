@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2022-2026, T-HEAD (SHANGHAI) SEMICONDUCTOR CO., LTD.
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
@@ -160,7 +161,8 @@ __device__ __forceinline__ fx4 fx4_acc(fx4 a, fx4 b) {
 }
 
 template <typename scalar_t>
-scalar4<scalar_t> fx4_to_scalar4(fx4 a);
+// scalar4<scalar_t> fx4_to_scalar4(fx4 a);
+__device__ scalar4<scalar_t> fx4_to_scalar4(fx4 a);
 
 template <> // fx4_to_bfx4
 __device__ __forceinline__ scalar4<at::BFloat16> fx4_to_scalar4<at::BFloat16>(
@@ -415,7 +417,7 @@ __global__ void mqa_attn_kernel(
         *reinterpret_cast<const whole_int_t*>(&bf_r);
   }
 #else
-  printf("FATAL: kernel is for sm80+ only");
+  printf("FATAL: kernel is for ppu0010+ only");
 #endif // defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 700
 }
 

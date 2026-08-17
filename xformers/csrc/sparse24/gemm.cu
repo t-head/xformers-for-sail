@@ -55,7 +55,7 @@ Tensor two_four_sgemm_cutlass(
   using MMAOp = cutlass::arch::OpClassTensorOp; // Tensor cores are to be used
                                                 // for maximum performance.
   using SmArch =
-      cutlass::arch::Sm80; // Only CC 8.x devices are suported at the moment.
+      cutlass::arch::PPU0010; // Only CC 8.x devices are suported at the moment.
   using SwizzleThreadBlock =
       cutlass::gemm::threadblock::GemmIdentityThreadblockSwizzle<
           3>; // This choice provides good performance

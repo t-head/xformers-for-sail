@@ -55,7 +55,7 @@ void gemm_fused_operand_sum_(
   using MMAOp = cutlass::arch::OpClassTensorOp;
 
   // This code section describes CUDA SM architecture number
-  using SmArch = cutlass::arch::Sm80;
+  using SmArch = cutlass::arch::PPU0010;
 
   // This code section describes the tile size a thread block will compute
   using ThreadblockShape =

@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2022-2026, T-HEAD (SHANGHAI) SEMICONDUCTOR CO., LTD.
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
@@ -22,9 +23,7 @@
 
 #include "cutlass/gemm/threadblock/default_mma.h"
 #include "cutlass/gemm/threadblock/default_mma_core_simt.h"
-#include "cutlass/gemm/threadblock/default_mma_core_sm70.h"
-#include "cutlass/gemm/threadblock/default_mma_core_sm75.h"
-#include "cutlass/gemm/threadblock/default_mma_core_sm80.h"
+#include "cutlass/gemm/threadblock/default_mma_core.h"
 
 namespace cutlass {
 namespace gemm {
@@ -86,7 +85,7 @@ struct FindDefaultMma {
       SharedMemoryClear>;
 };
 
-/// Specialization for sm80 / FastF32 / multistage with kStages=2
+/// Specialization for ppu0010 / FastF32 / multistage with kStages=2
 template <
     typename ElementA_,
     /// Layout type for A matrix operand
@@ -117,7 +116,7 @@ struct FindDefaultMma<
     ElementAccumulator,
     layout::RowMajor,
     arch::OpClassTensorOp,
-    arch::Sm80,
+    arch::PPU0010,
     ThreadblockShape,
     WarpShape,
     InstructionShape,
@@ -126,7 +125,7 @@ struct FindDefaultMma<
     typename cutlass::platform::enable_if<(kAlignmentA > 1)>::type> {
   using LayoutC = layout::RowMajor;
   using OperatorClass = arch::OpClassTensorOp;
-  using ArchTag = arch::Sm80;
+  using ArchTag = arch::PPU0010;
 
   using DefaultMma_ = cutlass::gemm::threadblock::DefaultMma<
       ElementA_,

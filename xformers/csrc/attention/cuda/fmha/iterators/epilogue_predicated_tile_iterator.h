@@ -1,4 +1,5 @@
 /***************************************************************************************************
+ * Copyright (c) 2022-2026, T-HEAD (SHANGHAI) SEMICONDUCTOR CO., LTD.
  * Copyright (c) 2017 - 2023 NVIDIA CORPORATION & AFFILIATES. All rights
  *reserved. SPDX-License-Identifier: BSD-3-Clause
  *
@@ -314,7 +315,7 @@ class PredicatedTileIteratorPrefetch {
             uint64_t addr = (uint64_t)((void*)&memory_pointer
                                            [column * ThreadMap::Delta::kColumn /
                                             kElementsPerAccess]);
-            asm volatile("prefetch.global.L1 [ %1 ];" : "=l"(addr) : "l"(addr));
+            asm volatile("ppu.prefetch.global.L1 [ %1 ];" : "=l"(addr) : "l"(addr));
           }
 
           if (row + 1 < ThreadMap::Iterations::kRow) {

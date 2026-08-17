@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2022-2026, T-HEAD (SHANGHAI) SEMICONDUCTOR CO., LTD.
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
@@ -41,21 +42,12 @@
 #define DISPATCH_ARCHTAG(CC, func)                                        \
   {                                                                       \
     if (CC >= 80) {                                                       \
-      using ArchTag = cutlass::arch::Sm80;                                \
-      func();                                                             \
-    } else if (CC >= 75) {                                                \
-      using ArchTag = cutlass::arch::Sm75;                                \
-      func();                                                             \
-    } else if (CC >= 70) {                                                \
-      using ArchTag = cutlass::arch::Sm70;                                \
-      func();                                                             \
-    } else if (CC >= 50) {                                                \
-      using ArchTag = cutlass::arch::Sm50;                                \
+      using ArchTag = cutlass::arch::PPU0010;                                \
       func();                                                             \
     } else {                                                              \
       XFORMERS_CHECK(                                                     \
           false,                                                          \
-          "Your device is too old. We require compute capability >= 50"); \
+          "Your device is too old. We require compute capability >= 80"); \
     }                                                                     \
   }
 
@@ -75,7 +67,7 @@
   XFORMERS_CHECK(                         \
       uint64_t(PTR) % ALIGNMENT == 0, #PTR " is not correctly aligned")
 #define XFORMERS_CHECK TORCH_CHECK
-#elif defined(__CUDACC_RTC__)
+#elif defined(__HGGCCC_RTC__)
 #define CHECK_ALIGNED_PTR(PTR, ALIGNMENT)  \
   if (!(uint64_t(PTR) % ALIGNMENT == 0)) { \
     return false;                          \
@@ -155,7 +147,7 @@ struct DefaultGemmType<
   using Operator = cutlass::arch::OpMultiplyAddFastF32;
 };
 
-// Specialization for tensorcores with f16/bf16 - Sm75+
+// Specialization for tensorcells with f16/bf16 - PPU+
 template <typename ArchTag, typename scalar_t>
 struct DefaultGemmType<
     ArchTag,
@@ -168,17 +160,6 @@ struct DefaultGemmType<
   static constexpr int kMinimumAlignment = 4;
   using OpClass = cutlass::arch::OpClassTensorOp;
   using InstructionShape = cutlass::gemm::GemmShape<16, 8, 8>;
-  using Operator = cutlass::arch::OpMultiplyAdd;
-};
-
-// Specialization for tensorcores with f16 - Volta
-template <>
-struct DefaultGemmType<cutlass::arch::Sm70, cutlass::half_t, void> {
-  static constexpr int ThreadK = 32;
-  static constexpr int WarpK = 32;
-  static constexpr int kMinimumAlignment = 2;
-  using OpClass = cutlass::arch::OpClassTensorOp;
-  using InstructionShape = cutlass::gemm::GemmShape<8, 8, 4>;
   using Operator = cutlass::arch::OpMultiplyAdd;
 };
 

@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2022-2026, T-HEAD (SHANGHAI) SEMICONDUCTOR CO., LTD.
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
@@ -8,7 +9,7 @@
 #include <ATen/ATen.h>
 #include <ATen/cuda/CUDAGeneratorImpl.h>
 #include <c10/core/TensorOptions.h>
-#include <curand_kernel.h>
+#include <acrand_kernel.h>
 #include <torch/library.h>
 #include <torch/types.h>
 #include <ATen/cuda/CUDAGraphsUtils.cuh>
@@ -42,15 +43,15 @@ __global__ void rand_uniform_kernel(
   const int dropout_seq_start = batch_id * (n_heads * n_queries * n_keys) +
       head_id * (n_queries * n_keys);
 
-  curandStatePhilox4_32_10_t curand_state;
-  curand_init(
+  acrandStatePhilox4_32_10_t acrand_state;
+  acrand_init(
       std::get<0>(seeds),
       0,
       std::get<1>(seeds) + dropout_seq_start + query_idx * n_keys,
-      &curand_state);
+      &acrand_state);
 
   for (int key_start_idx = 0; key_start_idx < n_keys; key_start_idx += 4) {
-    float4 rand_quad = curand_uniform4(&curand_state);
+    float4 rand_quad = acrand_uniform4(&acrand_state);
 
 #pragma unroll
     for (int i = 0; i < 4; ++i) {

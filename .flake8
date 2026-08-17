@@ -1,7 +1,6 @@
 [flake8]
 exclude =
     .git
-    ,.github/run-clang-format.py
     ,third_party
     ,xformers/_flash_attn
 max-line-length = 120

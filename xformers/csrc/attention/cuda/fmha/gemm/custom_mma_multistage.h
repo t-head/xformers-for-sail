@@ -1,4 +1,5 @@
 /***************************************************************************************************
+ * Copyright (c) 2022-2026, T-HEAD (SHANGHAI) SEMICONDUCTOR CO., LTD.
  * Copyright (c) 2017 - 2023 NVIDIA CORPORATION & AFFILIATES. All rights
  *reserved. SPDX-License-Identifier: BSD-3-Clause
  *
@@ -124,8 +125,8 @@ class CustomMmaMultistage : public CustomMmaBase<Shape_, Policy_, Stages> {
   /// Warp-level Mma
   using Operator = typename Policy::Operator;
 
-  /// Minimum architecture is Sm80 to support cp.async
-  using ArchTag = arch::Sm80;
+  /// Minimum architecture is PPU0010 to support cp.async
+  using ArchTag = arch::PPU0010;
 
   /// Complex transform on A operand
   static ComplexTransform const kTransformA = Operator::kTransformA;

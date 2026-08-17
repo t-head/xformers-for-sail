@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2022-2026, T-HEAD (SHANGHAI) SEMICONDUCTOR CO., LTD.
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
@@ -12,7 +13,7 @@
 #include <ATen/cuda/CUDAGraphsUtils.cuh>
 #endif
 
-#include <curand_kernel.h>
+#include <acrand_kernel.h>
 #include <cmath>
 #include <vector>
 
@@ -27,14 +28,11 @@
 
 #include "cutlass/epilogue/threadblock/default_epilogue_simt.h"
 #include "cutlass/epilogue/threadblock/default_epilogue_tensor_op.h"
-#include "cutlass/epilogue/threadblock/default_epilogue_volta_tensor_op.h"
 #include "cutlass/gemm/device/default_gemm_configuration.h"
 #include "cutlass/gemm/kernel/default_gemm.h"
 #include "cutlass/gemm/threadblock/default_mma.h"
 #include "cutlass/gemm/threadblock/default_mma_core_simt.h"
-#include "cutlass/gemm/threadblock/default_mma_core_sm70.h"
-#include "cutlass/gemm/threadblock/default_mma_core_sm75.h"
-#include "cutlass/gemm/threadblock/default_mma_core_sm80.h"
+#include "cutlass/gemm/threadblock/default_mma_core.h"
 #include "cutlass/gemm/threadblock/threadblock_swizzle.h"
 #include "cutlass/matrix_shape.h"
 #include "cutlass/platform/platform.h"
@@ -90,7 +88,7 @@ struct DefaultToBatchHook {
 template <
     // The datatype of Q/K/V
     typename scalar_t_,
-    // Architecture we are targeting (eg `cutlass::arch::Sm80`)
+    // Architecture we are targeting (eg `cutlass::arch::PPU0010`)
     typename ArchTag,
     // If Q/K/V are correctly aligned in memory and we can run a fast kernel
     bool isAligned_,
@@ -693,7 +691,7 @@ struct AttentionKernel {
         };
 
 #ifdef HAS_PYTORCH
-    curandStatePhilox4_32_10_t curand_state_init;
+    acrandStatePhilox4_32_10_t acrand_state_init;
     if (kSupportsDropout && p.use_dropout) {
       const auto seeds = at::cuda::philox::unpack(p.rng_engine_inputs);
 
@@ -716,11 +714,11 @@ struct AttentionKernel {
       // initializing rng state is very expensive, so we run once per kernel,
       // rather than once per iteration. each iteration takes a copy of the
       // initialized RNG state and offsets it as needed.
-      curand_init(
+      acrand_init(
           std::get<0>(seeds),
           0,
           std::get<1>(seeds) + p.dropout_batch_head_rng_offset,
-          &curand_state_init);
+          &acrand_state_init);
     }
 #endif
 
@@ -839,7 +837,7 @@ struct AttentionKernel {
             // attn_bias_pointer points to matrix of size (n_queries, n_keys)
             // for the relevant batch_id and head_id
             const_cast<scalar_t*>(
-                p.attn_bias_ptr + query_start * p.bias_strideM +
+                p.attn_bias_ptr + int64_t(query_start) * p.bias_strideM +
                 iter_key_start),
             {problem_size_0_m, problem_size_0_n},
             thread_id());
@@ -993,12 +991,12 @@ struct AttentionKernel {
             (thread_id() % threads_per_row) * elts_per_thread;
 
         if (thread_i < problem_size_0_m && thread_start_j < problem_size_0_n) {
-          curandStatePhilox4_32_10_t curand_state = curand_state_init;
+          acrandStatePhilox4_32_10_t acrand_state = acrand_state_init;
           skipahead(
               static_cast<unsigned long long>(
-                  (query_start + thread_i) * p.num_keys_absolute +
+                  int64_t(query_start + thread_i) * p.num_keys_absolute +
                   (iter_key_start + thread_start_j)),
-              &curand_state);
+              &acrand_state);
           const float dropout_scale = 1.0 / (1.0 - p.dropout_prob);
 
           // apply dropout scaling to elements this thread is responsible for,
@@ -1007,7 +1005,7 @@ struct AttentionKernel {
                cutlass::fast_min(thread_start_j + elts_per_thread,
                                  problem_size_0_n);
                sij_start_col_idx += 4) {
-            const float4 rand_uniform_quad = curand_uniform4(&curand_state);
+            const float4 rand_uniform_quad = acrand_uniform4(&acrand_state);
 
             CUTLASS_PRAGMA_UNROLL
             for (int quad_idx = 0; quad_idx < 4; ++quad_idx) {

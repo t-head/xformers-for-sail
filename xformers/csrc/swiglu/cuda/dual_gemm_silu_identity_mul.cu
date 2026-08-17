@@ -79,7 +79,7 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor> dual_gemm_silu_identity_mul_(
   // Optionally, we might not need intermediate GEMM outputs
   constexpr bool kStoreD0 = true;
   constexpr bool kStoreD1 = true;
-  using ArchTag = cutlass::arch::Sm80;
+  using ArchTag = cutlass::arch::PPU0010;
 
   using DualGemm = cutlass::gemm::device::DualGemm<
       scalar_t,

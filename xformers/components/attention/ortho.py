@@ -25,6 +25,7 @@ from xformers.components.attention.core import (
     scaled_query_key_softmax,
 )
 
+
 logger = logging.getLogger("xformers")
 
 
@@ -264,13 +265,13 @@ class OrthoFormerAttention(Attention):
             (B, 1, 1), dtype=selected_mask.dtype, device=q_samples_normalized.device
         )
 
-        #  Get initial random landmark
+        # Get initial random landmark
         random_idx = torch.randint(
             q_samples_normalized.size(-2), (B, 1, 1), device=q_samples_normalized.device
         )
         selected_mask.scatter_(-2, random_idx, landmark_mask)
 
-        #  Selected landmarks
+        # Selected landmarks
         selected_landmarks = torch.empty(
             (B, self.num_landmarks, D),
             device=q_samples_normalized.device,
@@ -289,7 +290,7 @@ class OrthoFormerAttention(Attention):
 
         for M in range(1, self.num_landmarks):
             with profiler.record_function("find new landmark"):
-                #  Calculate absolute cosine similarity between selected and unselected landmarks
+                # Calculate absolute cosine similarity between selected and unselected landmarks
                 # (B, N, D) * (B, D) -> (B, N)
                 cos_sims[:, :, M - 1] = torch.einsum(
                     "b n d, b d -> b n",
@@ -300,19 +301,19 @@ class OrthoFormerAttention(Attention):
                 # (B, N, M) cosine similarities of current set of landmarks wrt all queries and keys
                 cos_sim_set = cos_sims[:, :, :M]
 
-                #  Get orthogonal landmark: landmark with smallest absolute cosine similarity:
+                # Get orthogonal landmark: landmark with smallest absolute cosine similarity:
                 # set cosine similarity for already selected landmarks to > 1
                 cos_sim_set.view(-1, M)[selected_mask.flatten().bool(), :] = 10
 
                 # (B,) - want max for non
                 selected_landmark_idx = cos_sim_set.amax(-1).argmin(-1)
 
-                #  Add most orthogonal landmark to selected landmarks:
+                # Add most orthogonal landmark to selected landmarks:
                 selected_landmarks[:, M, :] = q_samples_normalized[
                     torch.arange(q_samples_normalized.size(0)), selected_landmark_idx, :
                 ].view(B, D)
 
-                #  Removed selected indices from non-selected mask:
+                # Removed selected indices from non-selected mask:
                 selected_mask.scatter_(
                     -2, selected_landmark_idx.unsqueeze(-1).unsqueeze(-1), landmark_mask
                 )

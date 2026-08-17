@@ -1,4 +1,5 @@
 /***************************************************************************************************
+ * Copyright (c) 2022-2026, T-HEAD (SHANGHAI) SEMICONDUCTOR CO., LTD.
  * Copyright (c) 2017 - 2023 NVIDIA CORPORATION & AFFILIATES. All rights
  *reserved. SPDX-License-Identifier: BSD-3-Clause
  *
@@ -43,7 +44,6 @@
 #include "cutlass/epilogue/thread/linear_combination.h"
 #include "cutlass/epilogue/threadblock/default_epilogue_simt.h"
 #include "cutlass/epilogue/threadblock/default_epilogue_tensor_op.h"
-#include "cutlass/epilogue/threadblock/default_epilogue_volta_tensor_op.h"
 #include "cutlass/functional.h"
 #include "cutlass/gemm/gemm.h"
 #include "cutlass/gemm/warp/mma_tensor_op_fragment_iterator.h"
@@ -522,7 +522,7 @@ class MmaPipelinedFromSharedMemory : public MmaBaseFromSharedMemory<
   }
 
   // For API compatibility with MmaMultistageFromSharedMemory
-  // but not supported as it worsens perf: older gpus < sm80 don't
+  // but not supported as it worsens perf: older gpus < ppu0010 don't
   // support async tranfers and have to waste registers
   CUTLASS_DEVICE
   void set_prologue_done(bool value) {}
@@ -776,8 +776,8 @@ class MmaMultistageFromSharedMemory : public MmaBaseFromSharedMemory<
   /// Warp-level Mma
   using Operator1 = typename Policy1::Operator;
 
-  /// Minimum architecture is Sm80 to support cp.async
-  using ArchTag = arch::Sm80;
+  /// Minimum architecture is PPU0010 to support cp.async
+  using ArchTag = arch::PPU0010;
 
   /// Complex transform on B operand
   static ComplexTransform const kTransformB1 = Operator1::kTransformB;
@@ -1475,7 +1475,7 @@ template <
     typename ThreadblockShape_>
 struct B2bGemm;
 
-// Tensor Cores >= Sm75 specialization (Ampere ...)
+// Tensor Cells >= PPU specialization (Ampere ...)
 template < /// Size of the matrix to load (concept: MatrixShape)
     typename Shape_,
     /// Element type
@@ -1634,184 +1634,8 @@ struct B2bGemm<
   }
 };
 
-// Volta Specialization
-// only supported for f16
-template <typename Operator, typename WarpShape_, typename ThreadblockShape_>
-struct B2bGemm<
-    cutlass::gemm::warp::MmaVoltaTensorOpAccumulatorTileIterator<
-        cutlass::MatrixShape<32, 32>,
-        float,
-        cutlass::layout::RowMajor,
-        cutlass::gemm::GemmShape<16, 16, 4>,
-        cutlass::MatrixShape<1, 1>>,
-    Operator,
-    cutlass::half_t,
-    WarpShape_,
-    ThreadblockShape_> {
-  using IteratorC =
-      cutlass::gemm::warp::MmaVoltaTensorOpAccumulatorTileIterator<
-          cutlass::MatrixShape<32, 32>,
-          float,
-          cutlass::layout::RowMajor,
-          cutlass::gemm::GemmShape<16, 16, 4>,
-          cutlass::MatrixShape<1, 1>>;
-  using scalar_t = cutlass::half_t;
-  using accum_t = IteratorC::Element;
-  using WarpShape = WarpShape_;
-  using ThreadblockShape = ThreadblockShape_;
-  using FragmentC = IteratorC::Fragment;
-  using lse_scalar_t = float;
-
-  // Storage in shared-memory for Q.Kt
-  using SmemAccumulatorLayout =
-      cutlass::layout::RowMajorVoltaTensorOpMultiplicandCrosswise<16, 32>;
-  using AccumulatorSharedStorage =
-      cutlass::gemm::threadblock::AccumulatorSharedStorage<
-          ThreadblockShape,
-          scalar_t,
-          SmemAccumulatorLayout,
-          cutlass::MatrixShape<0, 0> // Padding
-          >;
-  using TensorRef = cutlass::TensorRef<scalar_t, SmemAccumulatorLayout>;
-  using Policy = typename IteratorC::Policy;
-  using Element = accum_t;
-  // Those are MmaVoltaTensorOpAccumulatorTileIterator private fields
-  // Let's copy their values
-  static int const kElementsPerPartial = 4;
-  using EleShapePerPatial = typename cutlass::platform::conditional<
-      cutlass::platform::is_same<Element, float>::value,
-      cutlass::MatrixShape<2, 2>,
-      cutlass::MatrixShape<1, 4>>::type;
-  static int const kElementsPerMma = 8;
-  static int const kAccumulatorPatials = 2;
-  using QuadShapePerPatialMma = cutlass::MatrixShape<4, 4>;
-
-  static void CUTLASS_DEVICE accumToSmem(
-      AccumulatorSharedStorage& shared_storage,
-      FragmentC const& accum,
-      int lane_id,
-      cutlass::MatrixCoord const& tile_coords) {
-    // ctor - from MmaVoltaTensorOpAccumulatorTileIterator
-    TensorRef ref_(shared_storage.accum_ref());
-    int quad = (lane_id >> 2);
-    int lane_in_quad = (lane_id & 3);
-    int accum_m, accum_n;
-
-    if (cutlass::platform::is_same<Element, float>::value) {
-      // (quad[2],quad[0])+lane_in_quad[0]
-      accum_m = (((quad & 0x4) >> 1) + (quad & 0x1)) * 8 + (lane_in_quad & 1);
-      // (quad[1])+lane_in_quad[1]
-      accum_n =
-          ((quad >> 1) & 0x1) * kElementsPerPartial * kAccumulatorPatials +
-          (lane_in_quad & 2);
-    } else {
-      accum_m = (((quad & 0x4) >> 1) + (quad & 0x1)) * 8 +
-          lane_in_quad; // (quad[2],quad[0])
-      accum_n = ((quad >> 1) & 0x1) * kElementsPerPartial * kAccumulatorPatials;
-    }
-    cutlass::MatrixCoord lane_offset(accum_m, accum_n);
-
-    // Tile offset
-    ref_.add_coord_offset(
-        tile_coords *
-        cutlass::MatrixCoord(
-            {IteratorC::Shape::kRow, IteratorC::Shape::kColumn}));
-
-    using AccessType = cutlass::Array<scalar_t, EleShapePerPatial::kColumn>;
-
-    // store - from MmaVoltaTensorOpAccumulatorTileIterator
-    CUTLASS_PRAGMA_UNROLL
-    for (int tile_n = 0; tile_n < Policy::TileIterations::kColumn; ++tile_n) {
-      CUTLASS_PRAGMA_UNROLL
-      for (int tile_m = 0; tile_m < Policy::TileIterations::kRow; ++tile_m) {
-        CUTLASS_PRAGMA_UNROLL
-        for (int mma_n = 0; mma_n < Policy::MmaIterations::kColumn; ++mma_n) {
-          CUTLASS_PRAGMA_UNROLL
-          for (int mma_m = 0; mma_m < Policy::MmaIterations::kRow; ++mma_m) {
-            int mma_accum_start =
-                (((tile_n * Policy::TileIterations::kRow + tile_m) *
-                      Policy::MmaIterations::kColumn +
-                  mma_n) *
-                     Policy::MmaIterations::kRow +
-                 mma_m) *
-                kElementsPerMma;
-
-            CUTLASS_PRAGMA_UNROLL
-            for (int p = 0; p < kAccumulatorPatials; ++p) {
-              CUTLASS_PRAGMA_UNROLL
-              for (int m = 0; m < EleShapePerPatial::kRow; ++m) {
-                int accum_m = tile_m * Policy::InterleavedTile::kRow +
-                    mma_m * QuadShapePerPatialMma::kRow + m * 2;
-                int accum_n = tile_n * Policy::InterleavedTile::kColumn +
-                    mma_n * QuadShapePerPatialMma::kColumn +
-                    p * Policy::InterleavedTile::kColumn / 2;
-                int r = (accum_m + lane_offset.row());
-                AccessType to_store;
-                CUTLASS_PRAGMA_UNROLL
-                for (int n = 0; n < EleShapePerPatial::kColumn; ++n) {
-                  int idx = mma_accum_start + p * kElementsPerPartial +
-                      m * EleShapePerPatial::kColumn + n;
-                  int c = (accum_n + n + lane_offset.column());
-                  to_store[n] = scalar_t(accum[idx]);
-                }
-                int c = (accum_n + lane_offset.column());
-                assert(r < 32);
-                assert(c < 32);
-                *reinterpret_cast<AccessType*>(
-                    ref_.data() + ref_.offset({r, c})) = to_store;
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-
-  static void CUTLASS_DEVICE accumApplyLSEToSmem(
-      AccumulatorSharedStorage& shared_storage,
-      typename IteratorC::Fragment& accum,
-      lse_scalar_t const* lse,
-      int lse_extent,
-      int thread_id,
-      int warp_id,
-      int lane_id,
-      cutlass::MatrixCoord const& tile_coords) {
-    // Non-optimized way to apply LSE to registers
-    // NOTE: accum is attn.T
-    // TODO: Optimize for each architecture
-    static constexpr int WarpSize = 32;
-    using AccumLambdaIterator =
-        typename DefaultMmaAccumLambdaIterator<IteratorC, accum_t, WarpSize>::
-            Iterator;
-    auto lane_offset =
-        AccumLambdaIterator::get_lane_offset(lane_id, warp_id, tile_coords);
-
-    cutlass::Array<lse_scalar_t, IteratorC::Fragment::kElements> lse_prefetched;
-    lse_prefetched.clear();
-    int rowIdx = 0;
-    int colIdx = 0;
-    AccumLambdaIterator::iterateRows(
-        lane_offset,
-        [&](int accum_m) {
-          ++rowIdx;
-          colIdx = 0;
-        },
-        [&](int accum_m, int accum_n, int idx) {
-          if (rowIdx == 1) {
-            lse_prefetched[colIdx] = accum_n < lse_extent
-                ? lse[accum_n]
-                : platform::numeric_limits<accum_t>::infinity();
-          }
-          accum[idx] = expf(accum[idx] - lse_prefetched[colIdx]);
-          ++colIdx;
-        },
-        [&](int accum_m) {});
-    accumToSmem(shared_storage, accum, lane_id, tile_coords);
-  }
-};
-
 // Simt Specialization
-// for f32 on Sm70-Sm75 and f16/f32 below
+// for f32 on PPU-PPU and f16/f32 below
 
 template <
     typename Operator,

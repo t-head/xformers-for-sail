@@ -119,12 +119,12 @@ class Atomic {
 
   __device__ int load() {
     int val;
-    asm volatile("ld.global.cg.b32 %0, [%1];\n" : "=r"(val) : "l"(ptr_));
+    asm volatile("ppu.ld.global.cg.b32 %0, [%1];\n" : "=r"(val) : "l"(ptr_));
     return val;
   }
 
   __device__ void store(int val) {
-    asm volatile("st.global.cg.b32 [%0], %1;\n" : : "l"(ptr_), "r"(val));
+    asm volatile("ppu.st.global.cg.b32 [%0], %1;\n" : : "l"(ptr_), "r"(val));
   }
 
  private:

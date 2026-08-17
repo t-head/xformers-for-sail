@@ -3,9 +3,10 @@
 # This source code is licensed under the BSD license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Any, Iterable, List, Optional, Tuple
+from typing import Any, Iterable, Optional
 
 import numpy as np
+
 import torch
 
 from ..common import get_xformers_operator, register_operator
@@ -16,7 +17,7 @@ from .common import AttentionFwOpBase, Context, Inputs
 @register_operator
 class FwOp(AttentionFwOpBase):
     """An operator optimized for very small values of K (``K <= 32``) \
-        and f32 pre-Ampere as it does not use TensorCores.
+        and f32 pre-Ampere as it does not use TensorCells.
     Only supports contiguous inputs in BMK format, so an extra reshape \
         or contiguous call might be done.
 
@@ -39,7 +40,7 @@ class FwOp(AttentionFwOpBase):
     NAME = "decoderF"
 
     @classmethod
-    def not_supported_reasons(cls, d: Inputs) -> List[str]:
+    def not_supported_reasons(cls, d: Inputs) -> list[str]:
         reasons = super(FwOp, cls).not_supported_reasons(d)
 
         attn_bias = d.attn_bias
@@ -71,7 +72,7 @@ class FwOp(AttentionFwOpBase):
     @classmethod
     def apply(
         cls, inp: Inputs, needs_gradient: bool
-    ) -> Tuple[torch.Tensor, Optional[Context]]:
+    ) -> tuple[torch.Tensor, Optional[Context]]:
         if needs_gradient:
             raise NotImplementedError("gradient")
         attn_bias = inp.attn_bias

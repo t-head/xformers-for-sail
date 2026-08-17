@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2022-2026, T-HEAD (SHANGHAI) SEMICONDUCTOR CO., LTD.
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
@@ -9,78 +10,21 @@
 #ifndef XFORMERS_MEM_EFF_ATTENTION_DISABLE_BACKWARD
 #include "../../kernel_backward.h"
 __global__ void __launch_bounds__(
-    AttentionBackwardKernel<cutlass::arch::Sm50, float, true, false, false, 64, 64, 32>::kNumThreads,
-    AttentionBackwardKernel<cutlass::arch::Sm50, float, true, false, false, 64, 64, 32>::kMinBlocksPerSm)
-fmha_cutlassB_f32_aligned_64x64_k32_sm50(typename AttentionBackwardKernel<cutlass::arch::Sm50, float, true, false, false, 64, 64, 32>::Params p) {
-#ifdef __CUDA_ARCH__
-#if __CUDA_ARCH__ >= 500
-#if __CUDA_ARCH__ < 700
-  if (!p.advance_to_block()) {
-    return;
-  }
-  AttentionBackwardKernel<cutlass::arch::Sm50, float, true, false, false, 64, 64, 32>::attention_kernel(p);
-  return;
-#endif
-#endif
-    printf(
-        "FATAL: kernel `fmha_cutlassB_f32_aligned_64x64_k32_sm50` is for sm50-sm70, but was built for sm%d\n",
-        int(__CUDA_ARCH__ + 0) / 10);
-#endif
-}
-__global__ void __launch_bounds__(
-    AttentionBackwardKernel<cutlass::arch::Sm70, float, true, false, false, 64, 64, 32>::kNumThreads,
-    AttentionBackwardKernel<cutlass::arch::Sm70, float, true, false, false, 64, 64, 32>::kMinBlocksPerSm)
-fmha_cutlassB_f32_aligned_64x64_k32_sm70(typename AttentionBackwardKernel<cutlass::arch::Sm70, float, true, false, false, 64, 64, 32>::Params p) {
-#ifdef __CUDA_ARCH__
-#if __CUDA_ARCH__ >= 700
-#if __CUDA_ARCH__ < 750
-  if (!p.advance_to_block()) {
-    return;
-  }
-  AttentionBackwardKernel<cutlass::arch::Sm70, float, true, false, false, 64, 64, 32>::attention_kernel(p);
-  return;
-#endif
-#endif
-    printf(
-        "FATAL: kernel `fmha_cutlassB_f32_aligned_64x64_k32_sm70` is for sm70-sm75, but was built for sm%d\n",
-        int(__CUDA_ARCH__ + 0) / 10);
-#endif
-}
-__global__ void __launch_bounds__(
-    AttentionBackwardKernel<cutlass::arch::Sm75, float, true, false, false, 64, 64, 32>::kNumThreads,
-    AttentionBackwardKernel<cutlass::arch::Sm75, float, true, false, false, 64, 64, 32>::kMinBlocksPerSm)
-fmha_cutlassB_f32_aligned_64x64_k32_sm75(typename AttentionBackwardKernel<cutlass::arch::Sm75, float, true, false, false, 64, 64, 32>::Params p) {
-#ifdef __CUDA_ARCH__
-#if __CUDA_ARCH__ >= 750
-#if __CUDA_ARCH__ < 800
-  if (!p.advance_to_block()) {
-    return;
-  }
-  AttentionBackwardKernel<cutlass::arch::Sm75, float, true, false, false, 64, 64, 32>::attention_kernel(p);
-  return;
-#endif
-#endif
-    printf(
-        "FATAL: kernel `fmha_cutlassB_f32_aligned_64x64_k32_sm75` is for sm75-sm80, but was built for sm%d\n",
-        int(__CUDA_ARCH__ + 0) / 10);
-#endif
-}
-__global__ void __launch_bounds__(
-    AttentionBackwardKernel<cutlass::arch::Sm80, float, true, false, false, 64, 64, 32>::kNumThreads,
-    AttentionBackwardKernel<cutlass::arch::Sm80, float, true, false, false, 64, 64, 32>::kMinBlocksPerSm)
-fmha_cutlassB_f32_aligned_64x64_k32_sm80(typename AttentionBackwardKernel<cutlass::arch::Sm80, float, true, false, false, 64, 64, 32>::Params p) {
+    AttentionBackwardKernel<cutlass::arch::PPU0010, float, true, false, false, 64, 64, 32>::kNumThreads,
+    AttentionBackwardKernel<cutlass::arch::PPU0010, float, true, false, false, 64, 64, 32>::kMinBlocksPerSm)
+fmha_cutlassB_f32_aligned_64x64_k32_ppu0010(typename AttentionBackwardKernel<cutlass::arch::PPU0010, float, true, false, false, 64, 64, 32>::Params p) {
 #ifdef __CUDA_ARCH__
 #if __CUDA_ARCH__ >= 800
 #if __CUDA_ARCH__ < 1000
   if (!p.advance_to_block()) {
     return;
   }
-  AttentionBackwardKernel<cutlass::arch::Sm80, float, true, false, false, 64, 64, 32>::attention_kernel(p);
+  AttentionBackwardKernel<cutlass::arch::PPU0010, float, true, false, false, 64, 64, 32>::attention_kernel(p);
   return;
 #endif
 #endif
     printf(
-        "FATAL: kernel `fmha_cutlassB_f32_aligned_64x64_k32_sm80` is for sm80-sm100, but was built for sm%d\n",
+        "FATAL: kernel `fmha_cutlassB_f32_aligned_64x64_k32_ppu0010` is for ppu0010+, but was built for sm%d\n",
         int(__CUDA_ARCH__ + 0) / 10);
 #endif
 }
