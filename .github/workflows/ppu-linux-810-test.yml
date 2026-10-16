@@ -279,14 +279,6 @@ jobs:
           docker exec -t "${container_name}" bash -c \
             "echo '${SOURCE_COMMIT}' > /tmp/ppu_source_commit"
 
-      - name: Setup ccache in container
-        env:
-          CONTAINER_NAME: ${{ steps.container.outputs.container-name }}
-        run: |
-          docker exec -t "${CONTAINER_NAME}" bash .ci/ppu/ccache_env.sh
-          docker exec -t "${CONTAINER_NAME}" ccache -z \
-            || echo "[ccache] 归零统计失败，不影响编译" >&2
-
       - name: Build PPU torch wheel (with swapped xformers)
         id: build
         env:
@@ -325,21 +317,6 @@ jobs:
             || echo "（无 dmesg 权限或未记录到 OOM）"
           free -h; df -h /
           tail -40 "${RUNNER_TEMP}/mem-samples.log" 2>/dev/null || echo "（无采样数据）"
-
-      - name: Report ccache stats
-        if: always() && steps.container.outputs.container-name != ''
-        env:
-          CONTAINER_NAME: ${{ steps.container.outputs.container-name }}
-        run: |
-          docker exec "${CONTAINER_NAME}" ccache -c >/dev/null 2>&1 || true
-          stats=$(docker exec "${CONTAINER_NAME}" ccache -s 2>/dev/null || true)
-          [[ -z "${stats}" ]] && { echo "[ccache] 无统计输出"; exit 0; }
-          echo "${stats}"
-          {
-            echo "<details><summary>ccache stats</summary>"
-            echo ""; echo '```'; printf '%s\n' "${stats}"; echo '```'
-            echo "</details>"
-          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Collect wheel
         id: collect
