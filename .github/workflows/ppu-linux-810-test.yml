@@ -13,7 +13,7 @@ on:
         default: "2G"
   pull_request:
     branches:
-      - xformers-for-ci
+      - feature/for-ci-027
       - v0.0.27
     paths:
       - '.github/workflows/'
@@ -24,7 +24,7 @@ on:
       - 'requirements.txt'
   push:
     branches:
-      - xformers-for-ci
+      - feature/for-ci-027
       - v0.0.27
     paths:
       - '.github/workflows/ppu-linux-810-test.yml'
