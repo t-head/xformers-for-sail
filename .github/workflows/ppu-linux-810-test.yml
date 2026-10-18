@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       pytorch-ref:
-        description: 提供 test/test_transformers.py 与 .ci/ppu 脚本的 pytorch-for-sail 分支 / ref（默认 feature/for-ci-210）
+        description: 提供 test/test_transformers.py 与 .ci/ppu 脚本的 pytorch-for-sail 分支 / ref（默认 feature/for-ci-v213）
         type: string
-        default: feature/for-ci-210
+        default: feature/for-ci-v213
       ccache-maxsize:
         description: ccache 容量上限
         type: string
@@ -79,7 +79,7 @@ jobs:
       PIP_INDEX_URL: ""
       BUILD_ADDITIONAL_PACKAGES: ""
       REPO_DIR_IN_CONTAINER: /pytorch
-      PYTORCH_REF: ${{ inputs.pytorch-ref || 'feature/for-ci-210' }}
+      PYTORCH_REF: ${{ inputs.pytorch-ref || 'feature/for-ci-v213' }}
 
     steps:
       - name: Show runner spec
@@ -375,7 +375,7 @@ jobs:
       image: ghcr.io/actions/actions-runner:latest
     timeout-minutes: 180
     env:
-      PYTORCH_REF: ${{ inputs.pytorch-ref || 'feature/for-ci-210' }}
+      PYTORCH_REF: ${{ inputs.pytorch-ref || 'feature/for-ci-v213' }}
 
     steps:
       - name: Checkout pytorch-for-sail
