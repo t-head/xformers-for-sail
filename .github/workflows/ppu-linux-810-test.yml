@@ -6,7 +6,7 @@ on:
       pytorch-ref:
         description: 提供 test/test_transformers.py 与 .ci/ppu 脚本的 pytorch-for-sail 分支 / ref（默认 v2.10.0）
         type: string
-        default: v2.10.0
+        default: feature/for-ci-210
       ccache-maxsize:
         description: ccache 容量上限
         type: string
