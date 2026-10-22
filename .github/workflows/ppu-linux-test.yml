@@ -69,7 +69,6 @@ jobs:
     env:
       BUILD_ENVIRONMENT: ppu-linux-ubuntu24.04-py3.12-${{ matrix.board }}
       DOCKER_IMAGE: download.t-head.cn/docker_release/ppu:sdk2.2.0-hggcrt3-ubuntu24.04-py312-20261005
-      TORCH_CUDA_ARCH_LIST: "8.0"
       MAX_JOBS: "8"
       PPU_MEM_PER_JOB_GB: "4"
       CCACHE_MAXSIZE: ${{ inputs.ccache-maxsize || '2G' }}
@@ -166,7 +165,7 @@ jobs:
         run: |
           branch_slug=$(printf '%s' "${CACHE_BRANCH}" | tr -c '[:alnum:]._-' '-')
           fingerprint=$(
-            printf '%s\n%s\n' "${DOCKER_IMAGE}" "${TORCH_CUDA_ARCH_LIST}" | sha256sum | cut -c1-12
+            printf '%s\n' "${DOCKER_IMAGE}" | sha256sum | cut -c1-12
           )
           # Must strictly align with the cache-seeding prefix in ppu-build-refresh-cache.yml to hit the baseline seeded by the writer
           prefix="ppu-ccache-${BUILD_ENVIRONMENT}-${branch_slug}-${fingerprint}-"
@@ -250,7 +249,6 @@ jobs:
             --detach --tty --entrypoint /bin/bash \
             -e REPO_DIR="${REPO_DIR_IN_CONTAINER}" \
             -e BUILD_ENVIRONMENT \
-            -e TORCH_CUDA_ARCH_LIST \
             -e MAX_JOBS \
             -e SDK_INSTALL_DIR \
             -e PIP_INDEX_URL \
@@ -341,7 +339,7 @@ jobs:
             echo "### PPU torch build (with the current PR's xformers swapped in)"
             echo ""
             echo "- Image: \`${DOCKER_IMAGE}\`"
-            echo "- Arch: \`${TORCH_CUDA_ARCH_LIST}\` (board ${{ matrix.board }})"
+            echo "- Board: \`${{ matrix.board }}\`"
             echo "- xformers commit: \`${XF_COMMIT}\`"
             echo "- pytorch-for-sail: \`${PYTORCH_REF}\` @ \`${PT_COMMIT}\`"
             echo "- whl: \`${wheel_name}\` ($(du -h "${whls[0]}" | cut -f1))"
