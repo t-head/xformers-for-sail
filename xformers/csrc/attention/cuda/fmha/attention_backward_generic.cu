@@ -336,12 +336,12 @@ if (Kernel::kKernelComputesDelta) {
     std::cout << "[DEBUG] Backward_fa1: attention_backward_generic.ci debug_point 0"<< std::endl;
 #endif
     typename Kernel::Params p;
-    p.query_ptr = (scalar_t*)query.data_ptr();
-    p.key_ptr = (scalar_t*)key.data_ptr();
-    p.value_ptr = (scalar_t*)value.data_ptr();
-    p.logsumexp_ptr = (typename Kernel::lse_scalar_t*)logsumexp.data_ptr();
-    p.output_ptr = (scalar_t*)out.data_ptr();
-    p.grad_output_ptr = (scalar_t*)grad_out.data_ptr();
+    p.query_ptr = (scalar_t*)query.const_data_ptr();
+    p.key_ptr = (scalar_t*)key.const_data_ptr();
+    p.value_ptr = (scalar_t*)value.const_data_ptr();
+    p.logsumexp_ptr = (typename Kernel::lse_scalar_t*)logsumexp.const_data_ptr();
+    p.output_ptr = (scalar_t*)out.const_data_ptr();
+    p.grad_output_ptr = (scalar_t*)grad_out.const_data_ptr();
     p.grad_query_ptr = (scalar_t*)grad_q.data_ptr();
     p.grad_key_ptr = (scalar_t*)grad_k.data_ptr();
     p.grad_value_ptr = (scalar_t*)grad_v.data_ptr();
@@ -360,8 +360,8 @@ if (Kernel::kKernelComputesDelta) {
       p.scale = float(1.0 / std::sqrt(float(p.head_dim)));
     }
     if (cu_seqlens_q.has_value()) {
-      p.cu_seqlens_q_ptr = (int32_t*)cu_seqlens_q->data_ptr();
-      p.cu_seqlens_k_ptr = (int32_t*)cu_seqlens_k->data_ptr();
+      p.cu_seqlens_q_ptr = (int32_t*)cu_seqlens_q->const_data_ptr();
+      p.cu_seqlens_k_ptr = (int32_t*)cu_seqlens_k->const_data_ptr();
     }
 #ifdef DEBUG
     std::cout << "[DEBUG] Backward_fa1: attention_backward_generic.ci debug_point 1"<< std::endl;
@@ -409,7 +409,7 @@ if (Kernel::kKernelComputesDelta) {
           bias->scalar_type() == CutlassToAtenDtype<scalar_t>::atScalarType(),
           "invalid dtype for bias - should match query's dtype");
 
-      p.bias_ptr = (scalar_t*)bias->data_ptr();
+      p.bias_ptr = (scalar_t*)bias->const_data_ptr();
 
       TORCH_CHECK(bias->dim() == 4, "Bias expected in BMHK format");
       TORCH_CHECK(
@@ -637,12 +637,12 @@ if (Kernel::kKernelComputesDelta) {
     std::cout << "[DEBUG] Backward_fa2: attention_backward_generic.ci debug_point 0"<< std::endl;
 #endif
     typename Kernel::Params p;
-    p.query_ptr = (scalar_t*)query.data_ptr();
-    p.key_ptr = (scalar_t*)key.data_ptr();
-    p.value_ptr = (scalar_t*)value.data_ptr();
-    p.logsumexp_ptr = (typename Kernel::lse_scalar_t*)logsumexp.data_ptr();
-    p.output_ptr = (scalar_t*)out.data_ptr();
-    p.grad_output_ptr = (scalar_t*)grad_out.data_ptr();
+    p.query_ptr = (scalar_t*)query.const_data_ptr();
+    p.key_ptr = (scalar_t*)key.const_data_ptr();
+    p.value_ptr = (scalar_t*)value.const_data_ptr();
+    p.logsumexp_ptr = (typename Kernel::lse_scalar_t*)logsumexp.const_data_ptr();
+    p.output_ptr = (scalar_t*)out.const_data_ptr();
+    p.grad_output_ptr = (scalar_t*)grad_out.const_data_ptr();
     p.grad_query_ptr = (scalar_t*)grad_q.data_ptr();
     p.grad_key_ptr = (scalar_t*)grad_k.data_ptr();
     p.grad_value_ptr = (scalar_t*)grad_v.data_ptr();
@@ -661,8 +661,8 @@ if (Kernel::kKernelComputesDelta) {
       p.scale = float(1.0 / std::sqrt(float(p.head_dim)));
     }
     if (cu_seqlens_q.has_value()) {
-      p.cu_seqlens_q_ptr = (int32_t*)cu_seqlens_q->data_ptr();
-      p.cu_seqlens_k_ptr = (int32_t*)cu_seqlens_k->data_ptr();
+      p.cu_seqlens_q_ptr = (int32_t*)cu_seqlens_q->const_data_ptr();
+      p.cu_seqlens_k_ptr = (int32_t*)cu_seqlens_k->const_data_ptr();
     }
 #ifdef DEBUG
     std::cout << "[DEBUG] Backward_fa2: attention_backward_generic.ci debug_point 1"<< std::endl;
@@ -710,7 +710,7 @@ if (Kernel::kKernelComputesDelta) {
           bias->scalar_type() == CutlassToAtenDtype<scalar_t>::atScalarType(),
           "invalid dtype for bias - should match query's dtype");
 
-      p.bias_ptr = (scalar_t*)bias->data_ptr();
+      p.bias_ptr = (scalar_t*)bias->const_data_ptr();
 
       TORCH_CHECK(bias->dim() == 4, "Bias expected in BMHK format");
       TORCH_CHECK(
