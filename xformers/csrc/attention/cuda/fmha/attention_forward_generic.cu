@@ -179,8 +179,8 @@ efficient_attention_forward_cutlass(
     }
   } else {
     // Not using dropout
-    seed_t = at::empty({}, at::dtype(at::kLong).device(device));
-    offset_t = at::empty({}, at::dtype(at::kLong).device(device));
+    seed_t = at::zeros({}, at::dtype(at::kLong).device(device));
+    offset_t = at::zeros({}, at::dtype(at::kLong).device(device));
   }
 
   hggcDeviceProp* p = at::cuda::getDeviceProperties(query.device().index());
